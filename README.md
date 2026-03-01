@@ -86,7 +86,7 @@ mkdir -p ../data/payloads ../data/clues
 
 ⚠️ The `data/` directories must exist (`mkdir -p ../data/payloads ../data/clues`) and all commands below must be run from inside `build/`.
 
-- To run all benchmarks presented in the SophOMR paper:
+- To run all benchmarks presented in the SophOMR paper (16-17 compute-hours):
 ```
 python3 -u ../benchmark.py > benchmark.txt 2>&1
 ```
@@ -337,3 +337,4 @@ Digest size: 568138 bytes
 Recipient running time: 25684 us.
 Result is correct!
 ```
+
