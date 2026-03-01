@@ -2,6 +2,7 @@
 #include "include/GOMR.h"
 #include "include/OMR.h"
 #include "include/OMRopt.h"
+#include "include/OMDopt.h"
 #include "include/OMRdos.h"
 #include "include/MRE.h"
 #include <openssl/aes.h>
@@ -13,6 +14,8 @@ string AGOMR = "agomr";
 string FGOMR = "fgomr";
 string PERFOMR1 = "perfomr1";
 string PERFOMR2 = "perfomr2";
+string PERFOMD1 = "perfomd1";
+string PERFOMD2 = "perfomd2";
 
 int main(int argc, char* argv[]) {
     cout << "+------------------------------------+" << endl;
@@ -103,6 +106,20 @@ DEFAULT:
 	    num_of_pertinent_msgs_glb = atoi(argv[5]);
 	} else if (PERFOMR2.compare(argv[1]) == 0) {
             selection = 5;
+	    default_param_set = false;
+	    numcores = atoi(argv[2]);
+	    party_size_glb = atoi(argv[3]);
+	    numOfTransactions_glb = atoi(argv[4]);
+	    num_of_pertinent_msgs_glb = atoi(argv[5]);
+	} else if (PERFOMD1.compare(argv[1]) == 0) {
+	    selection = 34;
+	    default_param_set = true;
+	    numcores = atoi(argv[2]);
+	    party_size_glb = atoi(argv[3]);
+	    numOfTransactions_glb = atoi(argv[4]);
+	    num_of_pertinent_msgs_glb = atoi(argv[5]);
+	} else if (PERFOMD2.compare(argv[1]) == 0) {
+	    selection = 34;
 	    default_param_set = false;
 	    numcores = atoi(argv[2]);
 	    party_size_glb = atoi(argv[3]);
@@ -276,6 +293,11 @@ DEFAULT:
             numcores = 4;
             GOMR2_FG();
             break;
+
+        case 34:
+            OMD3_opt();
+            break;
+
         case 0:
             return 0;
         }

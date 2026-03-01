@@ -1,5 +1,139 @@
-# PerfOMR: proof of concept C++ implementation for OMR (Oblivious Message Retrieval) with Reduced Communication and Computation
+# PerfOMR Benchmark Reproduction
 
+Reproducing [PerfOMR](https://eprint.iacr.org/2024/204.pdf) benchmarks for comparison in the [SophOMR paper](https://eprint.iacr.org/2024/1814). This fork adds a PerfOMD variant, faster DB preparation, structured per-phase timing output, detection key / digest size reporting, and a benchmark script.
+
+## To Build
+
+(based on Ubuntu 24.04 LTS with x86-64)
+
+### Dependencies
+- C++ build environment
+- CMake build infrastructure
+- [NTL](https://libntl.org/) library
+- [OpenSSL](https://github.com/openssl/openssl) library (branch OpenSSL_1_1_1w — old version required for plain AES interface)
+- [PALISADE](https://gitlab.com/palisade/palisade-release) library
+- [SEAL](https://github.com/wyunhao/SEAL) library (custom fork with modified interfaces)
+- (Optional) [HEXL](https://github.com/intel/hexl) library (skip on ARM)
+
+### Scripts to install the dependencies and build the binary
+
+1. Install CMake, autoconf, GMP, and NTL (if needed).
+
+```
+sudo apt-get update
+sudo apt-get install build-essential cmake autoconf libgmp3-dev libntl-dev
+```
+
+2. Install OpenSSL, PALISADE, HEXL, and SEAL.
+
+```
+cd /path/to/PerfOMR
+mkdir -p build
+cd build
+BUILD=$PWD
+
+# OpenSSL 1.1.1
+git clone -b OpenSSL_1_1_1w https://github.com/openssl/openssl
+cd openssl
+./config --prefix=$BUILD && make && make install
+cd ..
+
+# PALISADE
+git clone https://gitlab.com/palisade/palisade-release.git
+cd palisade-release
+sed -i 's/-Werror//g' CMakeLists.txt  # fix build with GCC 12+; on macOS use sed -i '' 's/-Werror//g' CMakeLists.txt
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD -DBUILD_BENCHMARKS=OFF
+make
+make install
+cd ../..
+
+# Intel HEXL (skip on ARM)
+git clone https://github.com/intel/hexl
+cd hexl
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD
+make
+make install
+cd ../..
+
+# SEAL (custom fork with modified interfaces)
+# On ARM, drop -DSEAL_USE_INTEL_HEXL=ON
+git clone https://github.com/wyunhao/SEAL
+cd SEAL
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD -DCMAKE_PREFIX_PATH=$BUILD -DSEAL_USE_INTEL_HEXL=ON
+make
+make install
+cd ../..
+```
+
+3. Build the binary.
+
+```
+cmake .. -DCMAKE_PREFIX_PATH=$BUILD
+make
+```
+
+4. Basic test. On success, the final line of the output will be: `Result is correct!`
+
+```
+mkdir -p ../data/payloads ../data/clues
+./OMRdemos perfomr1 1 2 32768 50
+```
+
+## To Run
+
+⚠️ The `data/` directories must exist (`mkdir -p ../data/payloads ../data/clues`) and all commands below must be run from inside `build/`.
+
+- To run all benchmarks presented in the SophOMR paper:
+```
+python3 -u ../benchmark.py > benchmark.txt 2>&1
+```
+
+- To run with predefined parameters:
+```
+# ./OMRdemos <scheme> <cores> <msgs_per_bundle> <num_bundles> <num_pertinent_msgs>
+# scheme: perfomr1 or perfomd1
+
+# Benchmarked configurations
+./OMRdemos perfomr1 1 2 32768 50
+./OMRdemos perfomd1 1 2 32768 50
+./OMRdemos perfomr1 1 2 262144 50
+./OMRdemos perfomd1 1 2 262144 50
+./OMRdemos perfomr1 1 16 32768 50
+./OMRdemos perfomd1 1 16 32768 50
+```
+
+## Changes from the Original PerfOMR Codebase
+
+### PerfOMD: Oblivious Message Detection
+
+Added `perfomd1` — an OMD variant that detects pertinent message indices without retrieving payloads. The main entry point is `OMD3_opt()` in `OMDopt.h`. The server-side function `OMD_serverOperations3therest_obliviousExpansion_time()` runs only the LHS (index counter) computation via `randomizedIndexRetrieval_opt()`, skipping all RHS payload retrieval and packing. The recipient-side `OMD_decodeIndicesRandom_opt()` decrypts only the LHS buckets and extracts indices, returning a `vector<int>` instead of the full index-to-payload map. The resulting digest is smaller and the detector runs faster than PerfOMR since it skips payload retrieval entirely.
+
+### Faster database preparation
+
+Non-pertinent clues were generated via `OPVWGenerateSecretKey` + `OPVWEncSK`, but the server cannot distinguish wrong-key ciphertexts from random data. They are now sampled directly with `dug.GenerateVector`. The pertinent-index lookup was also changed from `find()` to `binary_search()`. Correctness is unaffected.
+
+### Structured timing output
+
+The detector now prints parseable per-phase timings for 5 non-overlapping phases, making it straightforward to compare against SophOMR benchmarks.
+
+### Detection key and digest size output
+
+Detection key size and digest size are now printed alongside timing results, enabling direct communication-cost comparison.
+
+### Benchmark script
+
+`benchmark.py` automates running all PerfOMR and PerfOMD configurations benchmarked in the SophOMR paper and collects timing and size statistics.
+
+---
+
+*Original README follows below.*
+
+---
+
+# PerfOMR: proof of concept C++ implementation for OMR (Oblivious Message Retrieval) with Reduced Communication and Computation
 
 ### Abstract:
 Anonymous message delivery systems, such as private messaging services and privacypreserving payment systems, need a mechanism for recipients to retrieve the messages addressed to them, without leaking metadata or letting their messages be linked. Recipients could download all posted messages and scan for those addressed to them, but communication and computation costs are excessive at scale.

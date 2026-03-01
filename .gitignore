@@ -1,9 +1,10 @@
+# Build
 build/
+
+# Data
 data/
-.vscode/
-.DS_Store
-include/SEAL-4.0/
-include/SEAL-4.1/
-include/hexl/
-lib/
-include/palisade/
+
+# Hidden files (except .gitignore)
+.*
+!.gitignore
+

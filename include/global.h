@@ -39,6 +39,8 @@ vector<uint64_t> unpack_pv_time;
 vector<uint64_t> digest_encode_time;
 vector<uint64_t> process_u_time;
 
+uint64_t total_affine_us = 0, total_rangecheck_us = 0;
+
 // (root, ring_dim) --> root^(2*ring_dim) % 65537 = 1
 // (4, 8), (2, 16), (255, 32), (141, 128), (431, 512), (21, 2048), (15, 8192), (9, 16384), (3, 32768) with prime = 65537
 // (8, 65536), (5, 131072) with prime = 786433

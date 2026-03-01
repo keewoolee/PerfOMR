@@ -716,10 +716,15 @@ vector<vector<uint64_t>> preparingTransactionsFormal_opt(vector<int>& pertinentM
     int tt = 0;
     vector<int> p_reduced;
 
+    NativeInteger q = params.q;
+    int n = params.n;
+    DiscreteUniformGeneratorImpl<NativeVector> dug;
+    dug.SetModulus(q);
+
     for(int i = 0; i < numOfTransactions * party_size; i++){
         OPVWCiphertext tempclue;
 
-        if(find(pertinentMsgIndices.begin(), pertinentMsgIndices.end(), i) != pertinentMsgIndices.end()) {
+        if(binary_search(pertinentMsgIndices.begin(), pertinentMsgIndices.end(), i)) {
             int ind = i / party_size;
 
             if(find(p_reduced.begin(), p_reduced.end(), ind) == p_reduced.end()) { // the whole chunk never get stored before
@@ -732,8 +737,8 @@ vector<vector<uint64_t>> preparingTransactionsFormal_opt(vector<int>& pertinentM
             time_end = chrono::high_resolution_clock::now();
             tt += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
         } else {
-            auto sk2 = OPVWGenerateSecretKey(params);
-            OPVWEncSK(tempclue, zeros, sk2, params);
+            tempclue.a = dug.GenerateVector(n);
+            tempclue.b = dug.GenerateVector(n);
         }
         saveClues_OPVE(tempclue, i);
     }
@@ -756,12 +761,16 @@ Ciphertext obtainPackedSICFromRingLWEClue(SecretKey& sk, vector<OPVWCiphertext>&
     s = chrono::high_resolution_clock::now();
     computeBplusAS_OPVW(packedSIC, SICPVW, switchingKey, gal_keys, context, params, default_param_set);
     e = chrono::high_resolution_clock::now();
-    /* cout << "   computeBplusAS_OPVW time: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl; */
+    total_affine_us += chrono::duration_cast<chrono::microseconds>(e - s).count();
 
     /* cout << "** Noise after b-aSK: " << decryptor.invariant_noise_budget(packedSIC[0]) << endl; */
 
     // int rangeToCheck = 20; // range check is from [-rangeToCheck, rangeToCheck-1]
-    return rangeCheck_OPVW(sk, packedSIC, relin_keys, degree, context, params, default_param_set);
+    s = chrono::high_resolution_clock::now();
+    auto result = rangeCheck_OPVW(sk, packedSIC, relin_keys, degree, context, params, default_param_set);
+    e = chrono::high_resolution_clock::now();
+    total_rangecheck_us += chrono::duration_cast<chrono::microseconds>(e - s).count();
+    return result;
 }
 
 
